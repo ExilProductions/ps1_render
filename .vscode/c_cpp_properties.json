@@ -3,9 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/Ps1Engine/renderer",
-                "${workspaceFolder}/Ps1Engine/loader",
-                "${workspaceFolder}/Ps1Engine",
+                "${workspaceFolder}/Engine/renderer",
+                "${workspaceFolder}/Engine/loader",
+                "${workspaceFolder}/Engine",
                 "${workspaceFolder}/external/**",
                 "/usr/include",
                 "/usr/local/include"

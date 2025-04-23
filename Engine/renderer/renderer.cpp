@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include <stdexcept>
 #include <algorithm>
+#include <map>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -50,7 +51,6 @@ Matrix4 matrix_multiply(const Matrix4 &a, const Matrix4 &b)
 
 Color convert_color(const Color &color)
 {
-
     uint8_t r = (color.r >> 3) << 3;
     uint8_t g = (color.g >> 3) << 3;
     uint8_t b = (color.b >> 3) << 3;
@@ -61,7 +61,6 @@ Renderer::Renderer(int width_, int height_, const std::string &title_)
     : width(width_), height(height_), title(title_),
       internal_width(320), internal_height(240)
 {
-
     if (!glfwInit())
     {
         throw std::runtime_error("Failed to initialize GLFW");
@@ -105,12 +104,11 @@ void Renderer::set_view_matrix(const Matrix4 &view)
 
 void Renderer::begin_frame()
 {
-
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void Renderer::render(const std::vector<Triangle> &triangles, GLuint texture)
+void Renderer::render(const std::vector<Triangle> &triangles)
 {
     std::vector<Triangle> transformed_triangles;
 
@@ -124,6 +122,7 @@ void Renderer::render(const std::vector<Triangle> &triangles, GLuint texture)
         t.uv1 = tri.uv1;
         t.uv2 = tri.uv2;
         t.color = tri.color;
+        t.texture = tri.texture;
 
         Vec3 edge1(t.v1.x - t.v0.x, t.v1.y - t.v0.y, t.v1.z - t.v0.z);
         Vec3 edge2(t.v2.x - t.v0.x, t.v2.y - t.v0.y, t.v2.z - t.v0.z);
@@ -185,53 +184,81 @@ void Renderer::render(const std::vector<Triangle> &triangles, GLuint texture)
         screen_tri.uv1 = tri.uv1;
         screen_tri.uv2 = tri.uv2;
         screen_tri.color = convert_color(tri.color);
+        screen_tri.texture = tri.texture;
 
         screen_triangles.push_back(screen_tri);
     }
 
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // Group triangles by texture
+    std::map<GLuint, std::vector<Triangle>> texture_groups;
+    for (const auto& tri : screen_triangles)
+    {
+        texture_groups[tri.texture].push_back(tri);
+    }
 
     glDisable(GL_BLEND);
 
-    for (const auto &tri : screen_triangles)
+    // Render each texture group
+    for (const auto& group : texture_groups)
     {
+        GLuint tex = group.first;
+        const std::vector<Triangle>& tris = group.second;
 
-        glBegin(GL_TRIANGLES);
-
-        Color c = tri.color;
-        glColor3ub(c.r, c.g, c.b);
-
-        glTexCoord2f(tri.uv0.x, tri.uv0.y);
-        glVertex3f(static_cast<float>(tri.v0.x), static_cast<float>(tri.v0.y), static_cast<float>(tri.v0.z) / 32767.0f);
-
-        glTexCoord2f(tri.uv1.x, tri.uv1.y);
-        glVertex3f(static_cast<float>(tri.v1.x), static_cast<float>(tri.v1.y), static_cast<float>(tri.v1.z) / 32767.0f);
-
-        glTexCoord2f(tri.uv2.x, tri.uv2.y);
-        glVertex3f(static_cast<float>(tri.v2.x), static_cast<float>(tri.v2.y), static_cast<float>(tri.v2.z) / 32767.0f);
-
-        glEnd();
-
-        if (rand() % 5 == 0)
+        if (tex != 0)
+        {
+            glBindTexture(GL_TEXTURE_2D, tex);
+            glEnable(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        }
+        else
         {
             glDisable(GL_TEXTURE_2D);
-            glColor3f(0.0f, 0.0f, 0.0f);
-            glBegin(GL_LINE_LOOP);
+        }
+
+        for (const auto& tri : tris)
+        {
+            glBegin(GL_TRIANGLES);
+            Color c = tri.color;
+            glColor3ub(c.r, c.g, c.b);
+
+            if (tex != 0)
+            {
+                glTexCoord2f(tri.uv0.x, tri.uv0.y);
+            }
             glVertex3f(static_cast<float>(tri.v0.x), static_cast<float>(tri.v0.y), static_cast<float>(tri.v0.z) / 32767.0f);
+
+            if (tex != 0)
+            {
+                glTexCoord2f(tri.uv1.x, tri.uv1.y);
+            }
             glVertex3f(static_cast<float>(tri.v1.x), static_cast<float>(tri.v1.y), static_cast<float>(tri.v1.z) / 32767.0f);
+
+            if (tex != 0)
+            {
+                glTexCoord2f(tri.uv2.x, tri.uv2.y);
+            }
             glVertex3f(static_cast<float>(tri.v2.x), static_cast<float>(tri.v2.y), static_cast<float>(tri.v2.z) / 32767.0f);
+
             glEnd();
-            glEnable(GL_TEXTURE_2D);
+
+            if (rand() % 5 == 0)
+            {
+                glDisable(GL_TEXTURE_2D);
+                glColor3f(0.0f, 0.0f, 0.0f);
+                glBegin(GL_LINE_LOOP);
+                glVertex3f(static_cast<float>(tri.v0.x), static_cast<float>(tri.v0.y), static_cast<float>(tri.v0.z) / 32767.0f);
+                glVertex3f(static_cast<float>(tri.v1.x), static_cast<float>(tri.v1.y), static_cast<float>(tri.v1.z) / 32767.0f);
+                glVertex3f(static_cast<float>(tri.v2.x), static_cast<float>(tri.v2.y), static_cast<float>(tri.v2.z) / 32767.0f);
+                glEnd();
+                if (tex != 0) glEnable(GL_TEXTURE_2D);
+            }
         }
     }
 }
 
 void Renderer::end_frame()
 {
-
     glfwSwapBuffers(window);
     glfwPollEvents();
 }

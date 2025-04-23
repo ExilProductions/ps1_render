@@ -1,4 +1,4 @@
-#include "renderer.h"
+#include <ps1engine.h>
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -283,10 +283,11 @@ int main()
                 t.uv1 = tri.uv1;
                 t.uv2 = tri.uv2;
                 t.color = tri.color;
+                t.texture = texture;
                 transformed_cube.push_back(t);
             }
 
-            renderer.render(transformed_cube, texture);
+            renderer.render(transformed_cube);
 
             renderer.end_frame();
         }

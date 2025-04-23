@@ -36,6 +36,7 @@ struct Triangle
     Vec3 v0, v1, v2;
     Vec2 uv0, uv1, uv2;
     Color color;
+    GLuint texture;
 };
 
 Vec3 matrix_multiply(const Matrix4 &mat, const Vec3 &v);
@@ -60,10 +61,11 @@ public:
     ~Renderer();
     void set_view_matrix(const Matrix4 &view);
     void begin_frame();
-    void render(const std::vector<Triangle> &triangles, GLuint texture);
+    void render(const std::vector<Triangle> &triangles);
     void end_frame();
     bool should_close();
     GLuint load_texture(const std::string &filepath);
+    GLFWwindow *get_window() { return window; }
 };
 
 #endif

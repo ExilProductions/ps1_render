@@ -7,13 +7,13 @@
 
 namespace fs = std::filesystem;
 
-std::map<std::string, Color> load_mtl_colors(const std::string& mtl_path)
+std::map<std::string, Material> load_mtl_materials(const std::string& mtl_path)
 {
-    std::map<std::string, Color> material_colors;
+    std::map<std::string, Material> materials;
     std::ifstream file(mtl_path);
     if (!file.is_open()) {
         std::cerr << "Warning: could not open MTL file: " << mtl_path << std::endl;
-        return material_colors;
+        return materials;
     }
 
     std::string line, current_mtl;
@@ -24,21 +24,30 @@ std::map<std::string, Color> load_mtl_colors(const std::string& mtl_path)
 
         if (keyword == "newmtl") {
             ss >> current_mtl;
+            materials[current_mtl] = Material{Color(255, 255, 255), ""}; // Default white, no texture
         } else if (keyword == "Kd") {
             float r, g, b;
             ss >> r >> g >> b;
-            material_colors[current_mtl] = Color(
-                static_cast<uint8_t>(r * 255),
-                static_cast<uint8_t>(g * 255),
-                static_cast<uint8_t>(b * 255)
-            );
+            if (materials.count(current_mtl)) {
+                materials[current_mtl].color = Color(
+                    static_cast<uint8_t>(r * 255),
+                    static_cast<uint8_t>(g * 255),
+                    static_cast<uint8_t>(b * 255)
+                );
+            }
+        } else if (keyword == "map_Kd") {
+            std::string texture_path;
+            ss >> texture_path;
+            if (materials.count(current_mtl)) {
+                materials[current_mtl].texture_path = texture_path;
+            }
         }
     }
 
-    return material_colors;
+    return materials;
 }
 
-std::vector<Triangle> load_obj(const std::string& obj_path)
+std::vector<Triangle> load_obj(const std::string& obj_path, Renderer* renderer)
 {
     std::ifstream file(obj_path);
     if (!file.is_open()) {
@@ -47,7 +56,8 @@ std::vector<Triangle> load_obj(const std::string& obj_path)
 
     std::vector<Vec3> positions;
     std::vector<Vec2> texcoords;
-    std::map<std::string, Color> materials;
+    std::map<std::string, Material> materials;
+    std::map<std::string, GLuint> texture_map;
     std::vector<Triangle> triangles;
 
     std::string current_material = "";
@@ -100,9 +110,11 @@ std::vector<Triangle> load_obj(const std::string& obj_path)
                 tri.uv2 = (t_idx[i + 1] >= 0 && t_idx[i + 1] < (int)texcoords.size()) ? texcoords[t_idx[i + 1]] : Vec2(0, 0);
 
                 if (materials.count(current_material)) {
-                    tri.color = materials[current_material];
+                    tri.color = materials[current_material].color;
+                    tri.texture = texture_map[current_material];
                 } else {
-                    tri.color = Color(255, 255, 255); // fallback white
+                    tri.color = Color(255, 255, 255); // Fallback white
+                    tri.texture = 0;                   // No texture
                 }
 
                 triangles.push_back(tri);
@@ -111,7 +123,19 @@ std::vector<Triangle> load_obj(const std::string& obj_path)
             std::string mtl_file;
             ss >> mtl_file;
             fs::path mtl_path = base_path / mtl_file;
-            materials = load_mtl_colors(mtl_path.string());
+            materials = load_mtl_materials(mtl_path.string());
+
+            // Load textures for all materials
+            for (const auto& mat_pair : materials) {
+                const std::string& mat_name = mat_pair.first;
+                const Material& mat = mat_pair.second;
+                if (!mat.texture_path.empty()) {
+                    fs::path texture_full_path = base_path / mat.texture_path;
+                    texture_map[mat_name] = renderer->load_texture(texture_full_path.string());
+                } else {
+                    texture_map[mat_name] = 0; // No texture
+                }
+            }
         } else if (keyword == "usemtl") {
             ss >> current_material;
         }

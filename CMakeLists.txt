@@ -8,23 +8,25 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include directories
-include_directories(${CMAKE_SOURCE_DIR}/renderer)
-include_directories(${CMAKE_SOURCE_DIR}/loader)
+include_directories(${CMAKE_SOURCE_DIR}/Engine)
+include_directories(${CMAKE_SOURCE_DIR}/Engine/renderer)
+include_directories(${CMAKE_SOURCE_DIR}/Engine/loader)
+include_directories(${CMAKE_SOURCE_DIR}/examples)
 include_directories(${CMAKE_SOURCE_DIR}/external/stb)
 
 # Source files
 set(SOURCES
-    ${CMAKE_SOURCE_DIR}/renderer/renderer.cpp
-    ${CMAKE_SOURCE_DIR}/loader/mesh.cpp
-    ${CMAKE_SOURCE_DIR}/../cube.cpp
+    ${CMAKE_SOURCE_DIR}/Engine/renderer/renderer.cpp
+    ${CMAKE_SOURCE_DIR}/Engine/loader/mesh.cpp
+    ${CMAKE_SOURCE_DIR}/examples/cube.cpp
 )
 
 # Executable
-add_executable(Ps1Engine ${SOURCES})
+add_executable(Engine ${SOURCES})
 
 # Link libraries
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(glfw3 REQUIRED)
 
-target_link_libraries(Ps1Engine OpenGL::GL GLEW::GLEW glfw)
+target_link_libraries(Engine OpenGL::GL GLEW::GLEW glfw)
