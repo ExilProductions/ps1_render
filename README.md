@@ -1,0 +1,1 @@
+This is a little project im working on, this is going to be a sort of game engine for ps1 games, ive currently only have a sort of renderer working and in the time while writing this i am working on the input system
