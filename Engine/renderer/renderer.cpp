@@ -8,45 +8,16 @@
 #define FIXED_POINT_PRECISION 4096
 #define FIXED_POINT_SHIFT 12
 
-Vec3::Vec3(int x_, int y_, int z_) : x(x_), y(y_), z(z_) {}
-
-Vec2::Vec2(float x_, float y_) : x(x_), y(y_) {}
-
 Color::Color(uint8_t r_, uint8_t g_, uint8_t b_) : r(r_), g(g_), b(b_) {}
 
-Matrix4::Matrix4()
-{
-    for (int i = 0; i < 16; i++)
-        m[i] = (i % 5 == 0) ? FIXED_POINT_PRECISION : 0;
-}
+Texture::Texture(GLuint id_, int width_, int height_) : id(id_), width(width_), height(height_) {}
 
-Vec3 matrix_multiply(const Matrix4 &mat, const Vec3 &v)
+Texture::~Texture()
 {
-    int x = (mat.m[0] * v.x + mat.m[1] * v.y + mat.m[2] * v.z + mat.m[3] * FIXED_POINT_PRECISION) / FIXED_POINT_PRECISION;
-    int y = (mat.m[4] * v.x + mat.m[5] * v.y + mat.m[6] * v.z + mat.m[7] * FIXED_POINT_PRECISION) / FIXED_POINT_PRECISION;
-    int z = (mat.m[8] * v.x + mat.m[9] * v.y + mat.m[10] * v.z + mat.m[11] * FIXED_POINT_PRECISION) / FIXED_POINT_PRECISION;
-    return Vec3(x, y, z);
-}
-
-Matrix4 matrix_multiply(const Matrix4 &a, const Matrix4 &b)
-{
-    Matrix4 result;
-
-    for (int row = 0; row < 4; ++row)
+    if (id != 0)
     {
-        for (int col = 0; col < 4; ++col)
-        {
-            result.m[row * 4 + col] =
-                (a.m[row * 4 + 0] * b.m[col + 0]) +
-                (a.m[row * 4 + 1] * b.m[col + 4]) +
-                (a.m[row * 4 + 2] * b.m[col + 8]) +
-                (a.m[row * 4 + 3] * b.m[col + 12]);
-
-            result.m[row * 4 + col] /= 4096;
-        }
+        glDeleteTextures(1, &id);
     }
-
-    return result;
 }
 
 Color convert_color(const Color &color)
@@ -115,9 +86,9 @@ void Renderer::render(const std::vector<Triangle> &triangles)
     for (const auto &tri : triangles)
     {
         Triangle t;
-        t.v0 = matrix_multiply(view_matrix, tri.v0);
-        t.v1 = matrix_multiply(view_matrix, tri.v1);
-        t.v2 = matrix_multiply(view_matrix, tri.v2);
+        t.v0 = Matrix4::multiply(view_matrix, tri.v0);
+        t.v1 = Matrix4::multiply(view_matrix, tri.v1);
+        t.v2 = Matrix4::multiply(view_matrix, tri.v2);
         t.uv0 = tri.uv0;
         t.uv1 = tri.uv1;
         t.uv2 = tri.uv2;
@@ -180,33 +151,47 @@ void Renderer::render(const std::vector<Triangle> &triangles)
             screen_tri.v0.y += (rand() % 3) - 1;
         }
 
-        screen_tri.uv0 = tri.uv0;
-        screen_tri.uv1 = tri.uv1;
-        screen_tri.uv2 = tri.uv2;
+        float dx1 = screen_tri.v1.x - screen_tri.v0.x;
+        float dy1 = screen_tri.v1.y - screen_tri.v0.y;
+        float dx2 = screen_tri.v2.x - screen_tri.v0.x;
+        float dy2 = screen_tri.v2.y - screen_tri.v0.y;
+
+        float area = dx1 * dy2 - dx2 * dy1;
+        if (std::abs(area) > 1e-6)
+        {
+            screen_tri.uv0 = tri.uv0;
+            screen_tri.uv1 = tri.uv1;
+            screen_tri.uv2 = tri.uv2;
+        }
+        else
+        {
+            screen_tri.uv0 = tri.uv0;
+            screen_tri.uv1 = tri.uv1;
+            screen_tri.uv2 = tri.uv2;
+        }
+
         screen_tri.color = convert_color(tri.color);
         screen_tri.texture = tri.texture;
 
         screen_triangles.push_back(screen_tri);
     }
 
-    // Group triangles by texture
     std::map<GLuint, std::vector<Triangle>> texture_groups;
     for (const auto& tri : screen_triangles)
     {
-        texture_groups[tri.texture].push_back(tri);
+        texture_groups[tri.texture.id].push_back(tri);
     }
 
     glDisable(GL_BLEND);
 
-    // Render each texture group
     for (const auto& group : texture_groups)
     {
-        GLuint tex = group.first;
+        GLuint tex_id = group.first;
         const std::vector<Triangle>& tris = group.second;
 
-        if (tex != 0)
+        if (tex_id != 0)
         {
-            glBindTexture(GL_TEXTURE_2D, tex);
+            glBindTexture(GL_TEXTURE_2D, tex_id);
             glEnable(GL_TEXTURE_2D);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -222,19 +207,19 @@ void Renderer::render(const std::vector<Triangle> &triangles)
             Color c = tri.color;
             glColor3ub(c.r, c.g, c.b);
 
-            if (tex != 0)
+            if (tex_id != 0)
             {
                 glTexCoord2f(tri.uv0.x, tri.uv0.y);
             }
             glVertex3f(static_cast<float>(tri.v0.x), static_cast<float>(tri.v0.y), static_cast<float>(tri.v0.z) / 32767.0f);
 
-            if (tex != 0)
+            if (tex_id != 0)
             {
                 glTexCoord2f(tri.uv1.x, tri.uv1.y);
             }
             glVertex3f(static_cast<float>(tri.v1.x), static_cast<float>(tri.v1.y), static_cast<float>(tri.v1.z) / 32767.0f);
 
-            if (tex != 0)
+            if (tex_id != 0)
             {
                 glTexCoord2f(tri.uv2.x, tri.uv2.y);
             }
@@ -251,7 +236,7 @@ void Renderer::render(const std::vector<Triangle> &triangles)
                 glVertex3f(static_cast<float>(tri.v1.x), static_cast<float>(tri.v1.y), static_cast<float>(tri.v1.z) / 32767.0f);
                 glVertex3f(static_cast<float>(tri.v2.x), static_cast<float>(tri.v2.y), static_cast<float>(tri.v2.z) / 32767.0f);
                 glEnd();
-                if (tex != 0) glEnable(GL_TEXTURE_2D);
+                if (tex_id != 0) glEnable(GL_TEXTURE_2D);
             }
         }
     }
@@ -268,7 +253,7 @@ bool Renderer::should_close()
     return glfwWindowShouldClose(window);
 }
 
-GLuint Renderer::load_texture(const std::string &filepath)
+Texture Renderer::load_texture(const std::string &filepath)
 {
     int width, height, channels;
     unsigned char *image = stbi_load(filepath.c_str(), &width, &height, &channels, 3);
@@ -319,9 +304,9 @@ GLuint Renderer::load_texture(const std::string &filepath)
         }
     }
 
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    GLuint texture_id;
+    glGenTextures(1, &texture_id);
+    glBindTexture(GL_TEXTURE_2D, texture_id);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, new_width, new_height, 0, GL_RGB, GL_UNSIGNED_BYTE, resized);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -333,5 +318,5 @@ GLuint Renderer::load_texture(const std::string &filepath)
     stbi_image_free(image);
     delete[] resized;
 
-    return texture;
+    return Texture(texture_id, new_width, new_height);
 }

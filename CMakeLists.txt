@@ -11,13 +11,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(${CMAKE_SOURCE_DIR}/Engine)
 include_directories(${CMAKE_SOURCE_DIR}/Engine/renderer)
 include_directories(${CMAKE_SOURCE_DIR}/Engine/loader)
+include_directories(${CMAKE_SOURCE_DIR}/Engine/input)
+include_directories(${CMAKE_SOURCE_DIR}/Engine/math)
+include_directories(${CMAKE_SOURCE_DIR}/Engine/time)
 include_directories(${CMAKE_SOURCE_DIR}/examples)
 include_directories(${CMAKE_SOURCE_DIR}/external/stb)
 
 # Source files
 set(SOURCES
     ${CMAKE_SOURCE_DIR}/Engine/renderer/renderer.cpp
-    ${CMAKE_SOURCE_DIR}/Engine/loader/mesh.cpp
+    ${CMAKE_SOURCE_DIR}/Engine/loader/obj_loader.cpp
+    ${CMAKE_SOURCE_DIR}/Engine/input/input.cpp
+    ${CMAKE_SOURCE_DIR}/Engine/time/time_manager.cpp
     ${CMAKE_SOURCE_DIR}/examples/cube.cpp
 )
 

@@ -6,18 +6,9 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <math.h>
 
-struct Vec3
-{
-    int x, y, z;
-    Vec3(int x_ = 0, int y_ = 0, int z_ = 0);
-};
-
-struct Vec2
-{
-    float x, y;
-    Vec2(float x_ = 0.0f, float y_ = 0.0f);
-};
+using namespace Math;
 
 struct Color
 {
@@ -25,10 +16,13 @@ struct Color
     Color(uint8_t r_ = 255, uint8_t g_ = 255, uint8_t b_ = 255);
 };
 
-struct Matrix4
+struct Texture
 {
-    int m[16];
-    Matrix4();
+    GLuint id;
+    int width;
+    int height;
+    Texture(GLuint id_ = 0, int width_ = 0, int height_ = 0);
+    ~Texture();
 };
 
 struct Triangle
@@ -36,13 +30,8 @@ struct Triangle
     Vec3 v0, v1, v2;
     Vec2 uv0, uv1, uv2;
     Color color;
-    GLuint texture;
+    Texture texture;
 };
-
-Vec3 matrix_multiply(const Matrix4 &mat, const Vec3 &v);
-
-Matrix4 matrix_multiply(const Matrix4 &a, const Matrix4 &b);
-
 Color convert_color(const Color &color);
 
 class Renderer
@@ -64,7 +53,7 @@ public:
     void render(const std::vector<Triangle> &triangles);
     void end_frame();
     bool should_close();
-    GLuint load_texture(const std::string &filepath);
+    Texture load_texture(const std::string &filepath);
     GLFWwindow *get_window() { return window; }
 };
 

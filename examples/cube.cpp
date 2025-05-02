@@ -145,66 +145,6 @@ std::vector<Triangle> create_cube(int size = 4096)
     return triangles;
 }
 
-Matrix4 create_rotation_y(float angle)
-{
-    Matrix4 mat;
-    int cos_val = static_cast<int>(std::cos(angle) * 4096);
-    int sin_val = static_cast<int>(std::sin(angle) * 4096);
-
-    mat.m[0] = cos_val;
-    mat.m[2] = -sin_val;
-    mat.m[8] = sin_val;
-    mat.m[10] = cos_val;
-
-    return mat;
-}
-
-Matrix4 create_rotation_x(float angle)
-{
-    Matrix4 mat;
-    int cos_val = static_cast<int>(std::cos(angle) * 4096);
-    int sin_val = static_cast<int>(std::sin(angle) * 4096);
-
-    mat.m[5] = cos_val;
-    mat.m[6] = -sin_val;
-    mat.m[9] = sin_val;
-    mat.m[10] = cos_val;
-
-    return mat;
-}
-
-Matrix4 create_rotation_z(float angle)
-{
-    Matrix4 mat;
-    int cos_val = static_cast<int>(std::cos(angle) * 4096);
-    int sin_val = static_cast<int>(std::sin(angle) * 4096);
-
-    mat.m[0] = cos_val;
-    mat.m[1] = -sin_val;
-    mat.m[4] = sin_val;
-    mat.m[5] = cos_val;
-
-    return mat;
-}
-
-Matrix4 create_translation(int x, int y, int z)
-{
-    Matrix4 mat;
-    mat.m[3] = x;
-    mat.m[7] = y;
-    mat.m[11] = z;
-    return mat;
-}
-
-Matrix4 create_view_matrix(float camera_distance)
-{
-    Matrix4 view;
-
-    view.m[11] = -camera_distance * 4096;
-
-    return view;
-}
-
 GLuint create_checkerboard_texture(int width, int height)
 {
     unsigned char *data = new unsigned char[width * height * 3];
@@ -239,7 +179,6 @@ int main()
 {
     try
     {
-
         Renderer renderer(800, 600, "Cube");
 
         std::vector<Triangle> cube = create_cube(4096 * 4);
@@ -247,26 +186,25 @@ int main()
         GLuint texture = create_checkerboard_texture(128, 128);
 
         float rotation = 0.0f;
-        float camera_distance = 0.7f;
 
         auto last_time = std::chrono::high_resolution_clock::now();
 
         while (!renderer.should_close())
         {
-
             auto current_time = std::chrono::high_resolution_clock::now();
             float delta_time = std::chrono::duration<float>(current_time - last_time).count();
             last_time = current_time;
 
             rotation += delta_time * 2.0f;
 
-            Matrix4 view = create_view_matrix(camera_distance);
+            Matrix4 view = Matrix4::perspective(90, 800.0f / 600.0f, 0.1f, 1000.0f);
 
-            Matrix4 rot_x = create_rotation_x(rotation * 0.7f);
-            Matrix4 rot_y = create_rotation_y(rotation);
-            Matrix4 rot_z = create_rotation_z(rotation * 1.3f);
+            int fixed_rotation = static_cast<int>(rotation * FIXED_POINT_PRECISION);
+            Matrix4 rot_x = Matrix4::rotateX(static_cast<int>(rotation * 0.7f * FIXED_POINT_PRECISION));
+            Matrix4 rot_y = Matrix4::rotateY(fixed_rotation);
+            Matrix4 rot_z = Matrix4::rotateZ(static_cast<int>(rotation * 1.3f * FIXED_POINT_PRECISION));
 
-            Matrix4 rotation_matrix = matrix_multiply(rot_z, matrix_multiply(rot_y, rot_x));
+            Matrix4 rotation_matrix = Matrix4::multiply(rot_z, Matrix4::multiply(rot_y, rot_x));
 
             renderer.set_view_matrix(view);
 
@@ -276,9 +214,9 @@ int main()
             for (const auto &tri : cube)
             {
                 Triangle t;
-                t.v0 = matrix_multiply(rotation_matrix, tri.v0);
-                t.v1 = matrix_multiply(rotation_matrix, tri.v1);
-                t.v2 = matrix_multiply(rotation_matrix, tri.v2);
+                t.v0 = Matrix4::multiply(rotation_matrix, tri.v0);
+                t.v1 = Matrix4::multiply(rotation_matrix, tri.v1);
+                t.v2 = Matrix4::multiply(rotation_matrix, tri.v2);
                 t.uv0 = tri.uv0;
                 t.uv1 = tri.uv1;
                 t.uv2 = tri.uv2;

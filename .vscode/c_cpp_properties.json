@@ -5,6 +5,9 @@
             "includePath": [
                 "${workspaceFolder}/Engine/renderer",
                 "${workspaceFolder}/Engine/loader",
+                "${workspaceFolder}/Engine/math",
+                "${workspaceFolder}/Engine/input",
+                "${workspaceFolder}/Engine/time",
                 "${workspaceFolder}/Engine",
                 "${workspaceFolder}/external/**",
                 "/usr/include",
